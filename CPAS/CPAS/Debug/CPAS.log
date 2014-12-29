@@ -1,0 +1,29 @@
+﻿Build started 2014-12-29 15:13:37.
+     1>Project "C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\CPAS\CPAS.vcxproj" on node 2 (Build target(s)).
+     1>AddCudaCompileDeps:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\cl.exe /E /nologo /showIncludes /TP /D__CUDACC__ /DWIN32 /D_DEBUG /D_CONSOLE /D_MBCS /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\bin" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include" /I. /FIcuda_runtime.h /c "C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\CPAS\kernel.cu" 
+       CudaBuild:
+         Compiling CUDA source file kernel.cu...
+         cmd.exe /C "C:\Users\Piotr\AppData\Local\Temp\tmpffbb33990eab43279da6808ef831ccc4.cmd"
+         "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\bin\nvcc.exe" -gencode=arch=compute_20,code=\"sm_20,compute_20\" --use-local-env --cl-version 2013 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin"  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include"  -G   --keep-dir Debug -maxrregcount=0  --machine 32 --compile -cudart static  -g   -DWIN32 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Zi /RTC1 /MDd  " -o Debug\kernel.cu.obj "C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\CPAS\kernel.cu"
+         
+         C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\CPAS>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\bin\nvcc.exe" -gencode=arch=compute_20,code=\"sm_20,compute_20\" --use-local-env --cl-version 2013 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin"  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include"  -G   --keep-dir Debug -maxrregcount=0  --machine 32 --compile -cudart static  -g   -DWIN32 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Zi /RTC1 /MDd  " -o Debug\kernel.cu.obj "C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\CPAS\kernel.cu" 
+     1>C:/Users/Piotr/documents/visual studio 2013/Projects/CPAS/CPAS/kernel.cu(6): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+     1>C:/Users/Piotr/documents/visual studio 2013/Projects/CPAS/CPAS/kernel.cu(34): warning : variable "index" was declared but never referenced
+     1>C:/Users/Piotr/documents/visual studio 2013/Projects/CPAS/CPAS/kernel.cu(131): warning : variable "threadId" was declared but never referenced
+     1>C:/Users/Piotr/documents/visual studio 2013/Projects/CPAS/CPAS/kernel.cu(133): warning : variable "pt_indx" was declared but never referenced
+     1>C:/Users/Piotr/documents/visual studio 2013/Projects/CPAS/CPAS/kernel.cu(6): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+     1>C:/Users/Piotr/documents/visual studio 2013/Projects/CPAS/CPAS/kernel.cu(34): warning : variable "index" was declared but never referenced
+     1>C:/Users/Piotr/documents/visual studio 2013/Projects/CPAS/CPAS/kernel.cu(131): warning : variable "threadId" was declared but never referenced
+     1>C:/Users/Piotr/documents/visual studio 2013/Projects/CPAS/CPAS/kernel.cu(133): warning : variable "pt_indx" was declared but never referenced
+         kernel.cu
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\Debug\CPAS.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\lib\Win32" cudart.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\Debug\CPAS.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\Debug\CPAS.lib" /MACHINE:X86 Debug\kernel.cu.obj
+     1>kernel.cu.obj : error LNK2019: unresolved external symbol _cufftPlanMany@44 referenced in function "enum cufftResult_t __cdecl preparePlan2D(int *,int,int,int)" (?preparePlan2D@@YA?AW4cufftResult_t@@PAHHHH@Z)
+     1>kernel.cu.obj : error LNK2019: unresolved external symbol _cufftExecC2C@16 referenced in function "enum cufftResult_t __cdecl execute2D(int *,struct float2 *,struct float2 *,int)" (?execute2D@@YA?AW4cufftResult_t@@PAHPAUfloat2@@1H@Z)
+     1>C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\Debug\CPAS.exe : fatal error LNK1120: 2 unresolved externals
+     1>Done Building Project "C:\Users\Piotr\documents\visual studio 2013\Projects\CPAS\CPAS\CPAS.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:03.87
