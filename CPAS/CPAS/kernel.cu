@@ -10,6 +10,77 @@
 
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
 
+struct kernelConf
+{
+	dim3 block;
+	dim3 grid;
+};
+
+kernelConf* conf_FFT_Shift(int N, int batch)
+{
+	kernelConf* conf = (kernelConf*)malloc(sizeof(kernelConf));
+
+	int threadsPerBlock_X;
+
+	threadsPerBlock_X = 1024;
+
+	conf->block = dim3(threadsPerBlock_X, 1, 1);
+	conf->grid = dim3(((N*batch / threadsPerBlock_X)) + 1, 1, 1);
+
+	return conf;
+}
+
+__global__ void cufftShift_2D(cufftComplex* data, int N, int batch)
+{
+
+	int sLine = N;
+	int sSlice = N * N;
+
+
+	int sEq1 = (sSlice + sLine) / 2;
+	int sEq2 = (sSlice - sLine) / 2;
+
+	int threadIdxX = threadIdx.x;
+	int blockDimX = blockDim.x;
+	int blockIdxX = blockIdx.x;
+
+	cufftComplex regTemp;
+	int index = ((blockIdxX * blockDimX) + threadIdxX);
+	int batchNumber = index / (N*N);
+
+	int yIndex = (index / N) - batchNumber*N;
+	int xIndex = index - (N*(index / N));
+
+
+	if (batchNumber <= (batch - 1) && xIndex < N / 2)
+	{
+		if (batchNumber <= (batch - 1) && yIndex < N / 2)
+		{
+			regTemp = data[index];
+
+
+			data[index] = data[index + sEq1];
+
+
+			data[index + sEq1] = regTemp;
+		}
+	}
+	else
+	{
+		if (batchNumber <= (batch - 1) && yIndex < N / 2)
+		{
+			regTemp = data[index];
+
+			data[index] = data[index + sEq2];
+
+
+			data[index + sEq2] = regTemp;
+		}
+	}
+
+
+}
+
 __global__ void addKernel(int *c, const int *a, const int *b)
 {
 	int i = threadIdx.x;
@@ -29,10 +100,10 @@ __device__ __forceinline__ cuComplex expf(cuComplex z)
 
 }
 
-__global__ void calculate(cuComplex *fths, int *xo, int *yo, int *uo, float *zo2, float dfxs,  float lambda, float k0, int Ts, float *fxs, float * y0seg, float* x0seg, int S_Bx, int S_By, int N_Bx, int N_By)
+__global__ void calculate(cuComplex *fths, int *xo, int *yo, double *uo, float *zo2, float dfxs, float lambda, float k0, int Ts, float *fxs, float * y0seg, float* x0seg, int S_Bx, int S_By, int N_Bx, int N_By)
 {
-	
-//	int	index = blockIdx.y*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
+
+	//	int	index = blockIdx.y*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
 	//	int index = threadIdx.x*blockIdx.z + blockIdx.y*blockDim.z + blockIdx.x*blockDim.x;
 
 
@@ -43,11 +114,11 @@ __global__ void calculate(cuComplex *fths, int *xo, int *yo, int *uo, float *zo2
 
 
 	float yp = yo[threadIdx.x] - y0seg[blockIdx.y];
-	
+
 	float xp = xo[threadIdx.x] - x0seg[blockIdx.x];
 
-	float rp = sqrt(zo2[threadIdx.x ] + xp*xp + yp*yp);
-	
+	float rp = sqrt(zo2[threadIdx.x] + xp*xp + yp*yp);
+
 
 	float inv_rp = 1 / rp;
 
@@ -63,20 +134,20 @@ __global__ void calculate(cuComplex *fths, int *xo, int *yo, int *uo, float *zo2
 		iifx = S_Bx / 2 + 1;
 		iify = S_Bx / 2 + 1;
 	}
-	
+
 
 
 	cuComplex c0;
 	cuComplex arg;
 	arg.x = (k0*rp - 2 * CUDART_PI_F*(fxs[iifx] + fxs[iify])*(Ts / 2)*inv_rp);
-	
+
 	c0 = expf(arg);
-//	c0.x = uo[blockDim.x] * c0.x;
-//	c0.y = uo[blockDim.x] * c0.y;
+	//	c0.x = uo[blockDim.x] * c0.x;
+	//	c0.y = uo[blockDim.x] * c0.y;
 
 	//fths[threadId] = c0;
-//	Nep[threadId] = iifx;
-//	Nip[threadId] = iify;
+	//	Nep[threadId] = iifx;
+	//	Nip[threadId] = iify;
 
 	fths[iifx + blockIdx.x*S_Bx + iify*S_Bx*N_Bx + blockIdx.x* S_Bx*N_Bx*S_By].x += c0.x;
 	fths[iifx + blockIdx.x*S_Bx + iify*S_Bx*N_Bx + blockIdx.x* S_Bx*N_Bx*S_By].y += c0.y;
@@ -100,7 +171,7 @@ cufftResult preparePlan2D(cufftHandle* plan, int nRows, int nCols, int batch){
 
 	if (result != 0){
 
-//		std::cout << "preparePlan2D error, result: " << result << "/n";
+		//		std::cout << "preparePlan2D error, result: " << result << "/n";
 		return result;
 	}
 	return result;
@@ -112,7 +183,7 @@ cufftResult execute2D(cufftHandle* plan, cufftComplex* idata, cufftComplex* odat
 
 	if (result != 0){
 
-//		cout << "execute2D error, result: " << result << "/n";
+		//		cout << "execute2D error, result: " << result << "/n";
 		return result;
 	}
 	return result;
@@ -136,17 +207,17 @@ __global__ void asemble(cuComplex *fths, int *xo, int *yo, int *uo, float *zo2, 
 
 	int pt_indx = threadIdx.x*blockIdx.z;
 
-//	fths2[] = fths2[] + fths[threadId]
+	//	fths2[] = fths2[] + fths[threadId]
 
-//		fths[threadId] = c0;
-//	Nep[threadId] = iifx;
-//	Nip[threadId] = iify;
+	//		fths[threadId] = c0;
+	//	Nep[threadId] = iifx;
+	//	Nip[threadId] = iify;
 
 
 }
 
 
-void CPAS_CGH_3DPS_2d(int Np, int* xo, int* yo, int* zo, int* uo, int Nx, int Ny, int dx, float lambda, int S_Bx, int S_By, cuComplex* fths_p)
+void CPAS_CGH_3DPS_2d(int Np, int* xo, int* yo, double* zo, double* uo, int Nx, int Ny, int dx, float lambda, int S_Bx, int S_By, cuComplex* fths_p)
 {
 	cudaEvent_t start, stop;
 	float time;
@@ -173,7 +244,7 @@ void CPAS_CGH_3DPS_2d(int Np, int* xo, int* yo, int* zo, int* uo, int Nx, int Ny
 	int N_By = Ny / S_By;
 
 	int Ts = S_Bx*dx;
-	
+
 	float dfxs = 1 / (float)Ts;
 
 	int fxs_size = (S_Bx / 2) + ((S_Bx / 2) - 1) + 1;
@@ -194,21 +265,21 @@ void CPAS_CGH_3DPS_2d(int Np, int* xo, int* yo, int* zo, int* uo, int Nx, int Ny
 	for (int t = 0; t < N_By; t++){
 		y0seg[t] = (y[0] + (t*Ts) + Ts / 2);
 	}
-/*	float * nseg_bx = (float*)malloc((Nosx)* sizeof(float));
+	/*	float * nseg_bx = (float*)malloc((Nosx)* sizeof(float));
 
 	for (int t = 0; t < Nosx; t++){
-		nseg_bx[t] = (1 + (t*Nxs));
+	nseg_bx[t] = (1 + (t*Nxs));
 
 	}
 
 	float * nseg_by = (float*)malloc((Nosy)* sizeof(float));
 
 	for (int t = 0; t < Nosy; t++){
-		nseg_by[t] = (1 + (t*Nxs));
+	nseg_by[t] = (1 + (t*Nxs));
 	}
 
 	float *h = (float*)calloc(Nx, sizeof(float));
-*/
+	*/
 
 	float *z02;
 	z02 = (float*)malloc((Np)* sizeof(float));
@@ -218,14 +289,14 @@ void CPAS_CGH_3DPS_2d(int Np, int* xo, int* yo, int* zo, int* uo, int Nx, int Ny
 
 
 
-//	cudaMalloc(&fths_p, sizeof(cuComplex)*N_Bx*N_By*S_Bx*S_By);
-//	cudaMemset(fths_p, 0, sizeof(cuComplex)*N_Bx*N_By*S_Bx*S_By);
+	//	cudaMalloc(&fths_p, sizeof(cuComplex)*N_Bx*N_By*S_Bx*S_By);
+	//	cudaMemset(fths_p, 0, sizeof(cuComplex)*N_Bx*N_By*S_Bx*S_By);
 
 
 	int *d_xo;
 	int *d_yo;
 	float *d_z02;
-	
+
 	cudaMalloc((void**)&d_xo, sizeof(int)*Np);
 	cudaMalloc((void**)&d_yo, sizeof(int)*Np);
 	cudaMalloc((void**)&d_z02, sizeof(float)*Np);
@@ -253,7 +324,7 @@ void CPAS_CGH_3DPS_2d(int Np, int* xo, int* yo, int* zo, int* uo, int Nx, int Ny
 	dim3 block;
 	block.x = Np; //z
 	block.y = 1;
-	
+
 	cudaEventRecord(start, 0);
 	calculate << < grid, block >> >(fths_p, d_xo, d_yo, uo, d_z02, dfxs, lambda, k0, Ts, d_fxs, d_y0seg, d_x0seg, S_Bx, S_Bx, N_Bx, N_By);
 	cudaEventRecord(stop, 0);
@@ -261,17 +332,15 @@ void CPAS_CGH_3DPS_2d(int Np, int* xo, int* yo, int* zo, int* uo, int Nx, int Ny
 	cudaEventElapsedTime(&time, start, stop);
 	printf("Time for the kernel: %f ms\n", time);
 
-/*	cuComplex *host;
+
+	/*	cuComplex *host;
 	host = (cuComplex*)malloc(sizeof(cuComplex)*Nosx*Nosy*Np);
 	cudaMemcpy(host, fths, sizeof(cuComplex)*Nosx*Nosy*Np, cudaMemcpyDeviceToHost);
-*/
+	*/
 }
 
 int main()
 {
-
-
-
 
 	cudaEvent_t start, stop;
 	float time;
@@ -279,61 +348,68 @@ int main()
 	cudaEventCreate(&stop);
 
 	/*START CUDA CALC PART - DEKLARACJE*/
-	int Nx = 1024;
-	int Ny = 1024;
+	int Nx = 512;
+	int Ny = 512;
 	int dx = 8;
 	float lambda = 0.5;
 	/*START CUDA FFT 2D PART - DEKLARACJE*/
-	int S_Bx = 8; 
-	int S_By = 8;
+	int S_Bx = 16;
+	int S_By = 16;
 
 	cufftComplex* h_out; //dane wynikowe CPU
 	cufftComplex* holo; //dane wyjœciowe GPU
 
-	int batch = Nx/S_Bx * Ny/S_By;  //N_Bx*N_By
+	int batch = Nx / S_Bx * Ny / S_By;  //N_Bx*N_By
 	cufftHandle forwardPlan;
 
 	preparePlan2D(&forwardPlan, S_Bx, S_By, batch);
-	
 
+	h_out = (cufftComplex*)malloc(sizeof(cufftComplex) *S_Bx*S_By*batch); //allokacja pamiêci na wynik (CPU)
 
-	h_out = (cufftComplex*)malloc(sizeof(cufftComplex)*S_Bx*S_By*batch); //allokacja pamiêci na wynik (CPU)
-
-
-	
-	cudaMalloc(&holo, sizeof(cufftComplex) *S_Bx*S_By*batch); //allokacja pamiêci na dane wyjœciowe (GPU)
+	cudaMalloc(&holo, sizeof(cufftComplex)*S_Bx*S_By*batch); //allokacja pamiêci na dane wyjœciowe (GPU)
 	cudaMemset(holo, 0, sizeof(cufftComplex)*S_Bx*S_By*batch); //Wype³nianie zaalokowanej pamiêci zerami (GPU)
 
 	/*END CUDA FFT 2D PART - DEKLARACJE*/
 
 	/*Kod kernela*/
-	int Np = 1000;
+	int Np = 1024;
 
 	int *xo;
 	int *yo;
-	int *zo;
-	int *uo;
-	
+	double *zo;
+	double *uo;
 
 	xo = (int*)malloc((Np)* sizeof(int));
 	yo = (int*)malloc((Np)* sizeof(int));
-	zo = (int*)malloc((Np)* sizeof(int));
-	uo = (int*)malloc((Np)* sizeof(int));
+	zo = (double*)malloc((Np)* sizeof(double));
+	uo = (double*)malloc((Np)* sizeof(double));
 
 	for (int tt = 0; tt < Np; tt++)
 	{
 		xo[tt] = tt;
-		yo[tt] = Np - tt;
-		zo[tt] = yo[tt] * xo[tt];
+		yo[tt] = tt;
+		zo[tt] = tt;
+	}
+
+	double W = 0.1e3;
+	double dxo = W / 10.0;
+	int foo = 0;
+
+	for (foo = 0; foo < Np; foo++)
+	{
+		xo[foo] = W;
+		yo[foo] = W;
+		zo[foo] = 50e3; // 5e3;
+		uo[foo] = 3.14;
 	}
 
 
-	
+
 	cuComplex *fths_p;
 
-	cufftComplex* fhs; 
+	cufftComplex* fhs;
 
-//	cudaMalloc(&fhs, sizeof(cufftComplex)*S_Bx*S_By*batch); //allokacja pamiêci na dane wejœciowe (GPU)
+	//	cudaMalloc(&fhs, sizeof(cufftComplex)*S_Bx*S_By*batch); //allokacja pamiêci na dane wejœciowe (GPU)
 	cudaMalloc(&fths_p, sizeof(cuComplex)*Nx*Ny);
 	cudaMemset(fths_p, 0, sizeof(cuComplex)*Nx*Ny);
 
@@ -341,25 +417,47 @@ int main()
 	/*START CUDA CALC PART */
 	CPAS_CGH_3DPS_2d(Np, xo, yo, zo, uo, Nx, Ny, dx, lambda, S_Bx, S_By, fths_p);
 
-	/*START CUDA CALC PART */
+	/*END CUDA CALC PART */
+	cudaMemcpy(h_out, holo, sizeof(cufftComplex)*S_Bx*S_By*batch, cudaMemcpyDeviceToHost);
 
-	
-	
+	for (int iii = 0; iii < Nx*Ny; iii++)
+	{
+		if (h_out[iii].x != 0)
+			printf("T: %f + i%f\n", 10e15*h_out[iii].x, 10e15*h_out[iii].y);
+	}
 
+
+	FILE *fp_real;
+	FILE *fp_imag;
+
+	if ((fp_real = fopen("fths_p_real.txt", "w")) != NULL && (fp_imag = fopen("fths_p_imag.txt", "w")) != NULL) {
+
+		for (int iii = 0; iii < S_Bx*S_By*batch; iii++)
+		{
+			fprintf(fp_real, "%f \n", h_out[iii].x);
+			fprintf(fp_imag, "%f \n", h_out[iii].y);
+		}
+	}
+
+	fclose(fp_real);
+	fclose(fp_imag);
+
+	/*START CUDA FFT_SHIFT PART */
+	kernelConf * conf = conf_FFT_Shift(S_Bx*S_By, batch);
+
+	cufftShift_2D << <conf->grid, conf->block >> >(fths_p, S_Bx, batch);
+	/*END CUDA FFT_SHIFT PART */
 
 	/*START CUDA FFT PART */
-	execute2D(&forwardPlan, fths_p, holo, CUFFT_FORWARD); 
+	execute2D(&forwardPlan, fths_p, holo, CUFFT_FORWARD);
 
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 
 	/*Wyswietlanie modulu/fazy*/
-	cudaMemcpy(h_out, holo, sizeof(cufftComplex)*S_Bx*S_By*batch, cudaMemcpyDeviceToHost); 
 
-	
+
 	/*END CUDA FFT PART */
-
-
 
 
 
@@ -370,10 +468,10 @@ int main()
 
 	// cudaDeviceReset must be called before exiting in order for profiling and
 	// tracing tools such as Nsight and Visual Profiler to show complete traces.
-/*	cudaStatus = cudaDeviceReset();
+	/*	cudaStatus = cudaDeviceReset();
 	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceReset failed!");
-		return 1;
+	fprintf(stderr, "cudaDeviceReset failed!");
+	return 1;
 	}
 	*/
 	return 0;
